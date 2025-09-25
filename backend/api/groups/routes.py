@@ -163,7 +163,7 @@ async def delete_group(group_id: int):
     cursor.execute("DELETE FROM `Group` WHERE id = %s", (group_id,))
     db_conn.commit()
     cursor.close()
-    return {"message": "Group deleted successfully"}
+    return {"message": "Group deleted successfully done"}
 
 
 
