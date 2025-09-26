@@ -1,5 +1,6 @@
 from backend.api.groups.sattlement import expense_settlement
-from backend.utils.db_conn import *
+from backend.utils.table_query import CreateGroupQuery,AddUserQuery,CheckGroupUserQuery,AddExpenseQuery,GetExpenseQuery
+from backend.utils.db_conn import conn
 import json
 from fastapi import HTTPException,APIRouter
 from backend.api.groups.schema.schemas import Group,UserAdd,GetGroupUsersResponse,GroupUser,AddExpenseRequest
@@ -13,12 +14,7 @@ async def create_group(group: Group):
     db_conn = get_db_conn()
     cursor = db_conn.cursor()
     table_name = "`Group`"
-    create_table_query = f"""
-    CREATE TABLE IF NOT EXISTS {table_name} (
-        id INT AUTO_INCREMENT PRIMARY KEY,
-        name VARCHAR(255) NOT NULL UNIQUE,
-        description VARCHAR(255) NOT NULL ) """
-    cursor.execute(create_table_query)
+    cursor.execute(CreateGroupQuery.Create_Table_Query)
     if not group.name.strip() or not group.description.strip():
         raise HTTPException(status_code=400, detail="Name and description are required")
     check_query = f"SELECT id FROM {table_name} WHERE name = %s"
@@ -51,14 +47,7 @@ async def add_user_to_group(user: UserAdd):
     if user_detail is None:
         cursor.close()
         raise HTTPException(status_code=404, detail="User not found")
-    cursor.execute("""
-    CREATE TABLE IF NOT EXISTS group_users (
-        group_id INT,
-        user_id INT,
-        PRIMARY KEY (group_id, user_id),
-        FOREIGN KEY (group_id) REFERENCES `Group`(id) ON DELETE CASCADE,
-        FOREIGN KEY (user_id) REFERENCES Users(id) ON DELETE CASCADE)
-        """)
+    cursor.execute(AddUserQuery.AddUser_Table_Query)
     cursor.execute("INSERT IGNORE INTO group_users (group_id, user_id) VALUES (%s, %s)",
         (user.group_id, user.user_id)
     )
@@ -77,10 +66,7 @@ async def check_group_users(group_id: int):
         cursor.close()
         raise HTTPException(status_code=404, detail="Group not found")
     group_name, description = group_info
-    cursor.execute("""
-    SELECT Users.id, Users.username, Users.email FROM Users 
-    JOIN group_users  ON Users.id = group_users.user_id
-    WHERE group_users.group_id = %s""", (group_id,))
+    cursor.execute(CheckGroupUserQuery.CheckGroup_User_Query, (group_id,))
     users = cursor.fetchall()
     cursor.close()
     user_list = [GroupUser(
@@ -97,17 +83,7 @@ async def check_group_users(group_id: int):
 async def add_expense(expense: AddExpenseRequest):
     db_conn = get_db_conn()
     cursor = db_conn.cursor()
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS expense_detail (
-            id INT AUTO_INCREMENT PRIMARY KEY,
-            group_id INT NOT NULL,
-            description VARCHAR(255) NOT NULL,
-            amount DECIMAL(10, 2) NOT NULL,
-            paid_by JSON NOT NULL,
-            split_on JSON NOT NULL,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (group_id) REFERENCES `Group`(id) ON DELETE CASCADE
-        ) """)
+    cursor.execute(AddExpenseQuery.AddExpense_Table_Query)
     cursor.execute("SELECT id FROM `Group` WHERE id = %s", (expense.group_id,))
     if not cursor.fetchone():
         raise HTTPException(status_code=404, detail="Group not found")
@@ -121,7 +97,7 @@ async def add_expense(expense: AddExpenseRequest):
 async def get_expenses(group_id: int,user_id:int):
     db_conn = get_db_conn()
     cursor = db_conn.cursor(dictionary=True)
-    cursor.execute("select id,group_id,description ,amount,paid_by,split_on from expense_detail where group_id = %s", (group_id,))
+    cursor.execute(GetExpenseQuery.GetExpense_Query, (group_id,))
     expenses = cursor.fetchall()
     user_settlement = expense_settlement(expenses,user_id)
     return user_settlement
