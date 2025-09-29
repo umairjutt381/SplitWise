@@ -1,11 +1,16 @@
 from pydantic import BaseModel
 from typing import List, Optional
 
+from backend.utils.response_schema import APIResponseSchema
+
 
 class Group(BaseModel):
     id: int = None
     name: str
     description: str
+
+class GroupResponse(APIResponseSchema):
+    data: Group
 
 class UserAdd(BaseModel):
     group_id: int
