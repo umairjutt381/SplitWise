@@ -2,6 +2,7 @@ from backend.api.groups.sattlement import expense_settlement
 from backend.utils.table_query import CreateGroupQuery,AddUserQuery,CheckGroupUserQuery,AddExpenseQuery,GetExpenseQuery
 from backend.utils.db_conn import conn
 import json
+from fastapi import Body
 from fastapi import HTTPException,APIRouter
 from backend.api.groups.schema.schemas import Group,UserAdd,GetGroupUsersResponse,GroupUser,AddExpenseRequest
 
@@ -33,6 +34,24 @@ async def create_group(group: Group):
     if not row:
         raise HTTPException(status_code=404, detail="Group not found after creation")
     return Group(id=row[0], name=row[1], description=row[2])
+
+
+@router.patch("/update group name/{group_id}")
+async def update_group_name(group: Group,group_id: int):
+    db_conn = get_db_conn()
+    cursor = db_conn.cursor()
+    cursor.execute("select * from `Group` where id = %s", (group_id, ))
+    if not cursor.fetchone():
+        raise HTTPException(status_code=404, detail="Group not found")
+    cursor.execute("""
+        UPDATE `Group`
+        SET name = COALESCE(%s, name),
+            description = COALESCE(%s, description)
+        WHERE id = %s
+    """, (group.name,group.description, group_id, ))
+    db_conn.commit()
+    return {"message": "Group updated successfully"}
+
 
 @router.post("/add_user", status_code=201)
 async def add_user_to_group(user: UserAdd):
@@ -93,7 +112,53 @@ async def add_expense(expense: AddExpenseRequest):
     db_conn.commit()
     return {"message": "Expense added successfully"}
 
-@router.get("/get_expenses/{group_id}/{user_id}", status_code=200)
+@router.patch("/update_expense/{group_id}/{expense_id}")
+async def update_expense(group_id: int,expense_id: int,expense: AddExpenseRequest):
+    db_conn = get_db_conn()
+    cursor = db_conn.cursor()
+    cursor.execute("SELECT id FROM `Group` WHERE id = %s", (group_id,))
+    if not cursor.fetchone():
+        raise HTTPException(status_code=404, detail="Group not found")
+    cursor.execute("SELECT id FROM expense_detail WHERE id = %s AND group_id = %s", (expense_id, group_id))
+    if not cursor.fetchone():
+        raise HTTPException(status_code=404, detail="Expense not found")
+    cursor.execute(
+        """
+        UPDATE expense_detail SET 
+            description = COALESCE(%s, description),
+            amount = COALESCE(%s, amount),
+            paid_by = COALESCE(%s, paid_by),
+            split_on = COALESCE(%s, split_on)
+        WHERE id = %s AND group_id = %s """,
+        (
+            expense.description,
+            expense.amount,
+            json.dumps(expense.paid_by) if expense.paid_by is not None else None,
+            json.dumps(expense.split_on) if expense.split_on is not None else None,
+            expense_id,
+            group_id
+        )
+    )
+    db_conn.commit()
+    return {"message": "Expense updated successfully"}
+
+@router.delete("/delete_expense/{group_id}/{expense_id}")
+async def delete_expense(group_id: int, expense_id: int):
+    db_conn = get_db_conn()
+    cursor = db_conn.cursor()
+    cursor.execute("SELECT id FROM `Group` WHERE id = %s", (group_id,))
+    if not cursor.fetchone():
+        raise HTTPException(status_code=404, detail="Group not found")
+    cursor.execute(
+        "SELECT id FROM expense_detail WHERE id = %s AND group_id = %s",(expense_id, group_id),)
+    if not cursor.fetchone():
+        raise HTTPException(status_code=404, detail="Expense not found")
+    cursor.execute("DELETE FROM expense_detail WHERE id = %s AND group_id = %s",(expense_id, group_id),)
+    db_conn.commit()
+    return {"message": "Expense deleted successfully"}
+
+
+@router.get("/get_settlements/{group_id}/{user_id}", status_code=200)
 async def get_expenses(group_id: int,user_id:int):
     db_conn = get_db_conn()
     cursor = db_conn.cursor(dictionary=True)

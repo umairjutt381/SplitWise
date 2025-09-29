@@ -4,8 +4,8 @@ from typing import List, Optional
 
 class Group(BaseModel):
     id: int = None
-    name: str
-    description: str
+    name: Optional[str] = None
+    description: Optional[str] = None
 
 class UserAdd(BaseModel):
     group_id: int
@@ -22,9 +22,9 @@ class GetGroupUsersResponse(BaseModel):
     users: List[GroupUser]
 
 class AddExpenseRequest(BaseModel):
-    group_id: int
-    description: str
-    amount: float
-    paid_by: List[int]
-    split_on: List[int]
+    group_id: Optional[int] = None
+    description: Optional[str] = None
+    amount: Optional[float] = None
+    paid_by: Optional[List[str]] = None
+    split_on: Optional[List[str]] = None
 
