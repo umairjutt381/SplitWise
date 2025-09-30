@@ -160,6 +160,7 @@ async def delete_expense(group_id: int, expense_id: int):
 
 @router.get("/get_settlements/{group_id}/{user_id}", status_code=200)
 async def get_expenses(group_id: int,user_id:int):
+    # getting expense
     db_conn = get_db_conn()
     cursor = db_conn.cursor(dictionary=True)
     cursor.execute(GetExpenseQuery.GetExpense_Query, (group_id,))
