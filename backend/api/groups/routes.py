@@ -156,6 +156,7 @@ async def delete_expense(group_id: int, expense_id: int):
     cursor.execute("DELETE FROM expense_detail WHERE id = %s AND group_id = %s",(expense_id, group_id),)
     db_conn.commit()
     return {"message": "Expense deleted successfully"}
+#added a simple comments
 
 
 @router.get("/get_settlements/{group_id}/{user_id}", status_code=200)
