@@ -206,6 +206,4 @@ async def delete_group(group_id: int):
     db_conn.commit()
     cursor.close()
     return {"message": "Group deleted successfully done"}
-
-
-
+# added a new comments
